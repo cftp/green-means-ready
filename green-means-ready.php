@@ -132,6 +132,7 @@ class GreenMeansReady {
 
 	<?php 
 		$this->check_http(); 
+		$this->check_https(); 
 		$this->check_cron_http(); 
 	?>
 	
@@ -155,6 +156,21 @@ class GreenMeansReady {
 		remove_action( 'http_api_debug', array( $this, 'action_http_api_debug' ) );
 
 		$this->diagnose_http_response( $response, $url, __( 'HTTP' ) );
+	}
+
+	/**
+	 * Check we can use the WP HTTP API
+	 *
+	 * @return void
+	 * @author Simon Wheatley
+	 **/
+	protected function check_https() {
+		$url = "https://google.com/";
+		add_action( 'http_api_debug', array( $this, 'action_http_api_debug' ), 10, 5 );
+		$response = wp_remote_get( $url );
+		remove_action( 'http_api_debug', array( $this, 'action_http_api_debug' ) );
+
+		$this->diagnose_http_response( $response, $url, __( 'HTTPS' ) );
 	}
 
 	/**
