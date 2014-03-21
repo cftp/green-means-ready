@@ -130,11 +130,77 @@ class GreenMeansReady {
 	<div id="icon-tools" class="icon32"><br /></div>
 	<h2><?php _e( 'Server Checks', 'green-means-ready' ); ?></h2>
 
-	<?php $this->http_checks(); ?>
+	<?php 
+		$this->check_http(); 
+		$this->check_cron_http(); 
+	?>
 	
 </div>
 <?php
 	}
+
+	// CHECKS
+	// =========
+
+	/**
+	 * Check we can use the WP HTTP API
+	 *
+	 * @return void
+	 * @author Simon Wheatley
+	 **/
+	protected function check_http() {
+		$url = "http://google.com/";
+		add_action( 'http_api_debug', array( $this, 'action_http_api_debug' ), 10, 5 );
+		$response = wp_remote_get( $url );
+		remove_action( 'http_api_debug', array( $this, 'action_http_api_debug' ) );
+
+		$this->diagnose_http_response( $response, $url, __( 'HTTP' ) );
+	}
+
+	/**
+	 * Check we can ping the Cron.
+	 *
+	 * @return void
+	 * @author Simon Wheatley
+	 **/
+	protected function check_cron_http() {
+		$doing_wp_cron = sprintf( '%.22F', microtime( true ) );
+		/**
+		 * Filter the cron request arguments.
+		 *
+		 * @since 3.5.0
+		 *
+		 * @param array $cron_request_array {
+		 *     An array of cron request URL arguments.
+		 *
+		 *     @type string $url  The cron request URL.
+		 *     @type int    $key  The 22 digit GMT microtime.
+		 *     @type array  $args {
+		 *         An array of cron request arguments.
+		 *
+		 *         @type int  $timeout   The request timeout in seconds. Default .01 seconds.
+		 *         @type bool $blocking  Whether to set blocking for the request. Default false.
+		 *         @type bool $sslverify Whether to sslverify. Default true.
+		 *     }
+		 * }
+		 */
+		$cron_request = apply_filters( 'cron_request', array(
+			'url'  => add_query_arg( 'doing_wp_cron', $doing_wp_cron, site_url( 'wp-cron.php' ) ),
+			'key'  => $doing_wp_cron,
+			'args' => array(
+				'timeout'   => 0.01,
+				'blocking'  => true, // Different from an actual Cron request, because we want the response
+				/** This filter is documented in wp-includes/class-http.php */
+				'sslverify' => apply_filters( 'https_local_ssl_verify', true )
+			)
+		) );
+
+		add_action( 'http_api_debug', array( $this, 'action_http_api_debug' ), 10, 5 );
+		$response = wp_remote_post( $cron_request['url'], $cron_request['args'] );
+		remove_action( 'http_api_debug', array( $this, 'action_http_api_debug' ) );
+		$this->diagnose_http_response( $response, $cron_request['url'], __( 'Cron', 'green-means-ready' ) );
+	}
+
 
 	// UTILITIES
 	// =========
@@ -142,43 +208,43 @@ class GreenMeansReady {
 	/**
 	 * 
 	 *
+	 * @param $response
 	 *
 	 * @return void
 	 * @author Simon Wheatley
 	 **/
-	public function http_checks() {
-		$url = "http://google.com/";
-		add_action( 'http_api_debug', array( $this, 'action_http_api_debug' ), 10, 5 );
-		$response = wp_remote_get( $url );
-		remove_action( 'http_api_debug', array( $this, 'action_http_api_debug' ) );
+	protected function diagnose_http_response( $response, $url, $label ) {
 
 		// Perhaps something went wrong with the HTTP request
 		if ( is_wp_error( $response ) ) {
 			?>
-			<p class="error"><?php printf( __( '<strong>ERROR<span> –</span></strong> HTTP: %s', 'green-means-ready' ), esc_html( $response->get_error_message() ) ); ?></p>
+			<p class="error"><?php printf( __( '<strong>ERROR<span> –</span></strong> %1$s: <kbd>%2$s</kbd>', 'green-means-ready' ), esc_html( $label ), esc_html( $response->get_error_message() ) ); ?></p>
 			<?php
 			$this->http_info();
 			return;
 		}
 
+		$debug = $this->http_debug[ count( $this->http_debug ) -1 ];
 		$status_code = wp_remote_retrieve_response_code( $response );
 
 		// If all is well, waste no time in telling the user
 		if ( 200 == $status_code ) {
 			?>
-			<p class="error"><?php printf( __( '<STRONG>SUCCESS<span> –</span></STRONG> HTTP: The server was able to reach <kbd>%s</kbd>, which returned an HTTP <kbd>200</kbd> Status code', 'green-means-ready' ), esc_html( $url ) ); ?></p>
+			<p class="error"><?php printf( __( '<STRONG>SUCCESS<span> –</span></STRONG> %1$s: The server was able to %2$s <kbd>%3$s</kbd>, which returned an HTTP <kbd>200</kbd> Status code', 'green-means-ready' ), esc_html( $label ), esc_html( $debug['args']['method'] ), esc_html( $url ) ); ?></p>
 			<?php
 			return;
 		}
 
 		// Some redirection?
 		if ( in_array( $status_code, array( 301, 302 ) ) ) {
-			$redirect_url = wp_remote_retrieve_header( $response, $header );
+			$redirect_url = wp_remote_retrieve_header( $response, 'Location' );
 			?>
-			<p class="unknown"><?php printf( __( '<STRONG>UNKNOWN<span> –</span></STRONG> HTTP: The server attempted to reach <kbd>%1$s</kbd>, and was returned a <kbd>%2$s</kbd> status code and a redirect to <kbd>%3$s</kbd>', 'green-means-ready' ), esc_html( $url ), esc_html( $status_code ), esc_html( $redirect_url ) ); ?></p>
+			<p class="unknown"><?php printf( __( '<STRONG>UNKNOWN<span> –</span></STRONG> %1$s: The server attempted to %2$s <kbd>%3$s</kbd>, and was returned a <kbd>%3$s</kbd> status code and a redirect to <kbd>%4$s</kbd>', 'green-means-ready' ), esc_html( $label ), esc_html( $debug['args']['method'] ), esc_html( $url ), esc_html( $status_code ), esc_html( $redirect_url ) ); ?></p>
 			<?php
+			$this->http_info();
 			return;
 		}
+		echo "Erk";
 	}
 
 	/**
@@ -188,7 +254,7 @@ class GreenMeansReady {
 	 * @return void
 	 * @author Simon Wheatley
 	 **/
-	public function http_info() {
+	protected function http_info() {
 		// Check for a proxy
 		$proxy = new WP_HTTP_Proxy();
 		$debug = $this->http_debug[ count( $this->http_debug ) -1 ];
