@@ -91,7 +91,7 @@ class GreenMeansReady {
 	 * @author Simon Wheatley
 	 **/
 	public function action_admin_menu() {
-		add_submenu_page( 'tools.php', __( 'Server Checks', 'green-means-ready' ), __( 'Server Checks', 'green-means-ready' ), 'manage_options', 'jhabsfdsjahbvkasdjhbck', array( $this, 'callback_server_checks' ) );
+		add_submenu_page( 'tools.php', __( 'Server Checks', 'green-means-ready' ), __( 'Server Checks', 'green-means-ready' ), 'manage_options', 'gmr-checks', array( $this, 'callback_server_checks' ) );
 	}
 
 	/**
