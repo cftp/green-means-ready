@@ -4,7 +4,6 @@
 Plugin Name: Green Means Ready
 Plugin URI: https://github.com/cftp/green-means-ready
 Description: Description
-Network: true
 Version: 0.1
 Author: Code for the People Ltd
 Author URI: http://codeforthepeople.com/
