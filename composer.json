@@ -1,0 +1,22 @@
+{
+	"name"       : "cftp/green-means-ready",
+	"description": "A plugin which tests various server and PHP capabilities that help WordPress function smoothly",
+	"keywords"   : ["wordpress"],
+	"type"       : "wordpress-plugin",
+	"homepage"   : "https://github.com/cftp/green-means-ready",
+	"license"    : "GPL-2.0",
+	"authors"    : [
+			{
+					"name"    : "Code For The People",
+					"homepage": "http://codeforthepeople.com"
+			}
+	],
+	"support"    : {
+			"issues": "https://github.com/cftp/green-means-ready/issues",
+			"source": "https://github.com/cftp/green-means-ready"
+	},
+	"require"    : {
+			"php": ">=5.2.4",
+			"composer/installers": "~1.0"
+	}
+}
